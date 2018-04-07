@@ -1,0 +1,189 @@
+---
+- hosts: all
+  remote_user: ec2-user
+  become: yes
+  vars:
+    tutorial_user: demo-user
+    tutorial_pass: demo
+    mysql_root_password: SuperSecretPassword
+
+    packages:
+      - mysql57-server
+      - percona-toolkit
+      - strace
+
+  tasks:
+    - name: Set hostname
+      hostname:
+        name=mysql
+
+    - name: Add tutorial user
+      user:
+        name={{ tutorial_user }}
+        password={{ tutorial_pass | password_hash('sha512') }}
+        shell=/bin/bash
+        update_password=on_create
+
+    - name: Add tutorial user to sudoers
+      lineinfile:
+        dest=/etc/sudoers
+        regexp="{{ tutorial_user }} ALL"
+        line="{{ tutorial_user }} ALL=(ALL) NOPASSWD:ALL"
+        state=present
+
+    - name: set sshd config
+      template:
+        src: sshd_config.j2
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0600'
+        validate: /usr/sbin/sshd -t -f %s
+      register: sshdconfig
+
+    - name: Reload SSH daemon
+      service:
+        name: sshd
+        state: reloaded
+      when: sshdconfig.changed
+
+    - name: Install Percona repo
+      yum:
+        name: http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm
+        state: present
+
+    - name: Install packages
+      yum:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ packages }}"
+
+    - name: delete /etc/mysqld
+      file:
+        name: /etc/mysql
+        state: absent
+
+    - name: delete /var/lib/mysql
+      file:
+        name: /var/lib/mysql
+        state: absent
+
+    - name: delete /root/.my.cnf
+      file:
+        name: /root/.my.cnf
+        state: absent
+
+    - name: set /etc/my.cnf
+      template:
+        src: etc-my.cnf.j2
+        dest: /etc/my.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: create /var/lib/mysql
+      file:
+        name: /var/lib/mysql
+        state: directory
+        owner: mysql
+        group: mysql
+        mode: 0755
+
+    - name: create /var/tmp
+      file:
+        name: /var/tmp
+        state: directory
+        owner: root
+        group: root
+        mode: 0777
+
+    - name: Start MySQL daemon
+      service:
+        name: mysqld
+        state: started
+
+    - name: Set root password
+      shell: mysql -uroot -e 'alter user root@localhost identified with mysql_native_password by "{{ mysql_root_password }}"'
+      args:
+        executable: /bin/bash
+
+
+    - name: Stop MySQL daemon
+      service:
+        name: mysqld
+        state: stopped
+
+# let's start breaking stuff
+
+    - name: create /etc/mysql
+      file:
+        name: /etc/mysql
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: create /var/tmp
+      file:
+        name: /var/tmp
+        state: directory
+        owner: root
+        group: root
+        mode: 0770
+
+    - name: set broken tmpdir my.cnf
+      template:
+        src: broken-tmpdir-my.cnf.j2
+        dest: /etc/mysql/.my.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: set broken my.cnf
+      template:
+        src: broken-etc-my.cnf.j2
+        dest: /etc/my.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: set broken /root/.my.cnf
+      template:
+        src: root-my.cnf.j2
+        dest: /root/.my.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: set wrong permissions on user table
+      file:
+        name: '{{ item }}'
+        owner: root
+        group: root
+        mode: 0640
+      with_items:
+        - /var/lib/mysql/mysql/user.frm
+        - /var/lib/mysql/mysql/user.MYD
+        - /var/lib/mysql/mysql/user.MYI
+
+    - name: set wrong permissions on ib_logfile0
+      file:
+        name: '{{ item }}'
+        owner: 42
+        group: 42
+        mode: 0640
+      with_items:
+        - /var/lib/mysql/ibdata1
+        - /var/lib/mysql/ib_logfile0
+        - /var/lib/mysql/ib_logfile1
+
+    - name: unpack PS 56
+      unarchive:
+        src: files/ps_56.tar.gz
+        dest: /var/lib/mysql
+        owner: mysql
+        group: mysql
+
+    - file:
+        name: /var/lib/mysql/mysql_upgrade_info
+        state: absent

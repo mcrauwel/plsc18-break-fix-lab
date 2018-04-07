@@ -1,0 +1,28 @@
+[mysqld]
+datadir=/var/lib/msql
+socket=/var/lib/mysql/mysql.sock
+
+query_cache_type=0
+query_cache_size=0
+
+innodb_file_per_table = 1
+innodb_flush_log_at_trx_commit = 1
+innodb_flush_method = O_DIRECT
+innodb_open_files = 4096
+innodb_purge_threads = 1
+innodb_log_file_size = 128M
+innodb_log_files_in_group = 2
+innodb_buffer_pool_size = 100G
+
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+
+!includedir /etc/mysql
+
+[mysqld_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+
+[client]
+socket=/tmp/mysql.sock
