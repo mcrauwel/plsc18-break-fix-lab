@@ -6,6 +6,11 @@
     tutorial_user: demo-user
     tutorial_pass: demo
     mysql_root_password: SuperSecretPassword
+    dbdeployer_version: 1.1.1
+    mysql_version: 5.7.21
+    mysql_file: mysql-5.7.21-linux-glibc2.12-x86_64.tar.gz
+    mysql_url: 'https://dev.mysql.com/get/Downloads/MySQL-5.7/{{ mysql_file }}'
+    mysql_checksum: 'md5:69b1d94f33c05b73cf72d557e484e2dc'
 
     packages:
       - mysql57-server
@@ -187,3 +192,51 @@
     - file:
         name: /var/lib/mysql/mysql_upgrade_info
         state: absent
+
+### Install and configure dbdeployer
+
+    - name: Install DBdeployer
+      unarchive:
+        src: "https://github.com/datacharmer/dbdeployer/releases/download/{{ dbdeployer_version }}/dbdeployer-{{ dbdeployer_version }}.linux.tar.gz"
+        dest: /usr/local/bin
+        remote_src: yes
+
+    - file:
+        name: /usr/local/bin/dbdeployer
+        state: link
+        src: "/usr/local/bin/dbdeployer-{{ dbdeployer_version }}.linux"
+
+    - file:
+        name: '/home/{{ tutorial_user }}/opt/mysql'
+        state: directory
+        owner: '{{ tutorial_user }}'
+        group: '{{ tutorial_user }}'
+        recurse: true
+
+    - name: download MySQL
+      get_url:
+        url: '{{ mysql_url}}'
+        dest: '/home/{{ tutorial_user }}/{{ mysql_file }}'
+        checksum: '{{ mysql_checksum }}'
+      become_user: '{{ tutorial_user }}'
+
+    - name: dbdeployer unpack mysql
+      shell: '/usr/local/bin/dbdeployer unpack {{ mysql_file }}'
+      args:
+        executable: /bin/bash
+        creates: '/home/{{ tutorial_user }}/opt/mysql/{{ mysql_version }}'
+      become_user: '{{ tutorial_user }}'
+
+    - name: install repl sandbox
+      shell: '/usr/local/bin/dbdeployer deploy -n 2 --sandbox-directory=normal-repl replication {{ mysql_version }}'
+      args:
+        executable: /bin/bash
+        creates: '/home/{{ tutorial_user }}/sandboxes/normal-repl'
+      become_user: '{{ tutorial_user }}'
+
+    - name: install gtid sandbox
+      shell: '/usr/local/bin/dbdeployer deploy -n 2 --gtid --sandbox-directory=gtid-repl replication {{ mysql_version }}'
+      args:
+        executable: /bin/bash
+        creates: '/home/{{ tutorial_user }}/sandboxes/gtid-repl'
+      become_user: '{{ tutorial_user }}'
