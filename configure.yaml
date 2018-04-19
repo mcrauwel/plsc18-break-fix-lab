@@ -16,6 +16,11 @@
       - mysql57-server
       - percona-toolkit
       - strace
+      - sysstat
+      - htop
+      - sysbench
+      - tcpdump
+      - innotop
 
   tasks:
     - name: Set hostname
