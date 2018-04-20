@@ -4,7 +4,7 @@
   become: yes
   vars:
     tutorial_user: demo-user
-    tutorial_pass: demo
+    tutorial_pass: plscdemo
     mysql_root_password: SuperSecretPassword
     dbdeployer_version: 1.1.1
     mysql_version: 5.7.21
