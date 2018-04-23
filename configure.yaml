@@ -13,7 +13,7 @@
     mysql_checksum: 'md5:69b1d94f33c05b73cf72d557e484e2dc'
 
     packages:
-      - mysql57-server
+      - mysql-community-server
       - percona-toolkit
       - strace
       - sysstat
@@ -61,6 +61,18 @@
       yum:
         name: http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm
         state: present
+
+    - name: Install MySQL repo
+      yum:
+        name: http://repo.mysql.com/yum/mysql-5.7-community/el/7/x86_64/mysql57-community-release-el7-10.noarch.rpm
+        state: present
+
+    - name: Add EPEL repository
+      yum_repository:
+        name: epel
+        description: EPEL YUM repo
+        baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+        gpgkey: https://archive.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
 
     - name: Install packages
       yum:
@@ -112,10 +124,10 @@
         name: mysqld
         state: started
 
-    - name: Set root password
-      shell: mysql -uroot -e 'alter user root@localhost identified with mysql_native_password by "{{ mysql_root_password }}"'
-      args:
-        executable: /bin/bash
+    # - name: Set root password
+    #   shell: mysql -uroot -e 'alter user root@localhost identified with mysql_native_password by "{{ mysql_root_password }}"'
+    #   args:
+    #     executable: /bin/bash
 
 
     - name: Stop MySQL daemon
